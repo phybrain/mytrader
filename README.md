@@ -1,9 +1,13 @@
 # My trader
 二次开发vnpy
-添加功能：
+添加修改功能：
+
 1.实时仓位盈利亏损查询
+
 2.tick级数据修正
+
 3.k线合成bug修改
+
 # 安装 installation 
 直接在终端输入:
 > pip install git+https://github.com/phybrain/mytrader.git
