@@ -813,6 +813,7 @@ class BinanceDataWebsocketApi(WebsocketClient):
             tick.high_price = float(data['h'])
             tick.low_price = float(data['l'])
             tick.last_price = float(data['c'])
+            tick.last_volume = float(data['Q'])
             tick.datetime = generate_datetime(float(data['E']))
         elif channel == "kline_1m":
 

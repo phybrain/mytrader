@@ -272,6 +272,9 @@ class CtaTemplate(ABC):
         if self.trading:
             self.cta_engine.sync_strategy_data(self)
 
+    def get_position_detail(self, vt_symbol: str):
+        """查询long_pos,short_pos(持仓)，long_pnl,short_pnl(盈亏),active_order(未成交字典)"""
+        return self.cta_engine.get_position_detail(vt_symbol)
 
 class CtaSignal(ABC):
     """"""
@@ -430,3 +433,4 @@ class TargetPosTemplate(CtaTemplate):
                 else:
                     vt_orderids = self.short(short_price, abs(pos_change))
             self.active_orderids.extend(vt_orderids)
+

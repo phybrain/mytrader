@@ -2,7 +2,7 @@
 *.pyc
 *.pyo
 *.egg-info/
-
+*.log
 # Jupyter
 .ipynb_checkpoints
 
