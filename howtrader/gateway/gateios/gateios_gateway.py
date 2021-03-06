@@ -199,7 +199,7 @@ class GateiosRestApi(RestClient):
         """"""
         self.add_request(
             method="GET",
-            path="/api/v4/futures/accounts",
+            path="/api/v4/futures/usdt/accounts",#/futures/accounts
             callback=self.on_query_account
         )
 
@@ -207,7 +207,7 @@ class GateiosRestApi(RestClient):
         """"""
         self.add_request(
             method="GET",
-            path="/api/v4/futures/positions",
+            path="/api/v4/futures/usdt/positions",
             callback=self.on_query_position
         )
 
@@ -221,7 +221,7 @@ class GateiosRestApi(RestClient):
 
             self.add_request(
                 method="GET",
-                path="/api/v4/futures/orders",
+                path="/api/v4/futures/usdt/orders",
                 callback=self.on_query_order,
                 params=params
             )
@@ -230,7 +230,7 @@ class GateiosRestApi(RestClient):
         """"""
         self.add_request(
             method="GET",
-            path="/api/v4/futures/contracts",
+            path="/api/v4/futures/usdt/contracts",
             callback=self.on_query_contract
         )
 
@@ -247,7 +247,7 @@ class GateiosRestApi(RestClient):
 
         resp = self.request(
             method="GET",
-            path="/api/v4/futures/candlesticks",
+            path="/api/v4/futures/usdt/candlesticks",
             params=params
         )
 
@@ -310,7 +310,7 @@ class GateiosRestApi(RestClient):
 
         self.add_request(
             method="POST",
-            path="/api/v4/futures/orders",
+            path="/api/v4/futures/usdt/orders",
             callback=self.on_send_order,
             data=data,
             extra=order,
@@ -330,7 +330,7 @@ class GateiosRestApi(RestClient):
 
         self.add_request(
             method="DELETE",
-            path=f"/api/v4/futures/orders/{sys_orderid}",
+            path=f"/api/v4/futures/usdt/orders/{sys_orderid}",
             callback=self.on_cancel_order,
             on_failed=self.on_cancel_order_failed,
             extra=req
