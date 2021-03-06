@@ -28,8 +28,8 @@ from howtrader.trader.object import (AccountData, BarData,QueryRequest, CancelRe
 TESTNET_REST_HOST = "https://fx-api-testnet.gateio.ws/"
 REST_HOST = "https://api.gateio.ws"
 
-TESTNET_WEBSOCKET_HOST = "wss://fx-ws-testnet.gateio.ws/v4/ws"
-WEBSOCKET_HOST = "wss://fx-ws.gateio.ws/v4/ws"
+TESTNET_WEBSOCKET_HOST = "wss://fx-ws-testnet.gateio.ws/v4/ws/usdt"
+WEBSOCKET_HOST = "wss://fx-ws.gateio.ws/v4/ws/usdt"
 
 INTERVAL_VT2GATEIO = {
     Interval.MINUTE: "1m",
@@ -628,6 +628,7 @@ class GateiosWebsocketApi(WebsocketClient):
         tick.last_price = float(d["last"])
         tick.volume = int(d["volume_24h"])
         tick.datetime = generate_datetime(t)
+        tick.last_volume = int(d["volume_24h_quote"])
         self.gateway.on_tick(copy(tick))
 
     def on_depth(self, d: Dict, t: int):
