@@ -211,7 +211,7 @@ class GateiosRestApi(RestClient):
             callback=self.on_query_position
         )
 
-    def query_order(self):
+    def query_order(self, req: QueryRequest):
         """"""
         for contract in self.symbols:
             params = {
