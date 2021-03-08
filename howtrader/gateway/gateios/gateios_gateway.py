@@ -399,7 +399,7 @@ class GateiosRestApi(RestClient):
             )
             self.order_manager.on_order(order)
 
-        self.gateway.write_log(f"{order.symbol}合约委托信息查询成功")
+            self.gateway.write_log(f"{order.symbol}合约委托信息查询成功")
 
     def on_query_contract(self, data, request):  # type: (dict, Request)->None
         """"""
