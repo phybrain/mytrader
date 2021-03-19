@@ -935,3 +935,8 @@ class CtaEngine(BaseEngine):
             position_detail.short_pos_frozen = 0
             position_detail.excepts=1
             return position_detail
+
+    def get_account(self, gateaway_name):
+
+        account = self.offset_converter.get_account(gateaway_name)
+        return account
