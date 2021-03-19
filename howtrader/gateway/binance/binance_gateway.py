@@ -22,7 +22,7 @@ from howtrader.trader.constant import (
     OrderType,
     Interval
 )
-from howtrader.trader.gateway import BaseGateway
+from howtrader.trader.gateway import BaseGateway,EVENT_ACCOUNT
 from howtrader.trader.object import (
     TickData,
     OrderData,
@@ -109,6 +109,7 @@ class BinanceGateway(BaseGateway):
         self.trade_ws_api = BinanceTradeWebsocketApi(self)
         self.market_ws_api = BinanceDataWebsocketApi(self)
         self.rest_api = BinanceRestApi(self)
+        self.account = {}
 
     def connect(self, setting: dict):
         """"""
@@ -161,6 +162,14 @@ class BinanceGateway(BaseGateway):
         """"""
         self.rest_api.keep_user_stream()
 
+    def on_account(self, account: AccountData) -> None:
+        """
+        Account event push.
+        Account event of a specific vt_accountid is also pushed.
+        """
+        self.account.update({account.vt_accountid:account})
+        self.on_event(EVENT_ACCOUNT, account)
+        self.on_event(EVENT_ACCOUNT + account.vt_accountid, account)
 
 class BinanceRestApi(RestClient):
     """
