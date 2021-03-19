@@ -62,6 +62,11 @@ class OffsetConverter:
             self.holdings[vt_symbol] = holding
         return holding
 
+    def get_account(self, gateway_name: str):
+        """"""
+        account = self.main_engine.gateways.get(gateway_name).account
+        return account
+
     def convert_order_request(self, req: OrderRequest, lock: bool) -> List[OrderRequest]:
         """"""
         if not self.is_convert_required(req.vt_symbol):

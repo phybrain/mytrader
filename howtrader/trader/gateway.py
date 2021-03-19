@@ -87,7 +87,7 @@ class BaseGateway(ABC):
         self.event_engine: EventEngine = event_engine
         self.gateway_name: str = gateway_name
         self.active_orders: Dict[str, OrderData] = {}  # {order_id: OrderData} for updating the trade event
-
+        self.account = {}
     def on_event(self, type: str, data: Any = None) -> None:
         """
         General event push.
@@ -166,6 +166,7 @@ class BaseGateway(ABC):
         Account event push.
         Account event of a specific vt_accountid is also pushed.
         """
+        self.account.update({account.vt_accountid: account})
         self.on_event(EVENT_ACCOUNT, account)
         self.on_event(EVENT_ACCOUNT + account.vt_accountid, account)
 
