@@ -2,7 +2,7 @@
 Basic data structure used for general trading function in VN Trader.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass,field
 from datetime import datetime
 from logging import INFO
 
@@ -45,7 +45,7 @@ class TickData(BaseData):
     open_price: float = 0
     high_price: float = 0
     low_price: float = 0
-    pre_close: float = 0
+    close_price: float = 0
 
     bid_price_1: float = 0
     bid_price_2: float = 0
@@ -70,6 +70,13 @@ class TickData(BaseData):
     ask_volume_3: float = 0
     ask_volume_4: float = 0
     ask_volume_5: float = 0
+
+    wp: float = 0
+    wv: float = 0
+    last_amount: float = 0
+
+    orderbook_local_time: float = 0
+    aggTrade: list = field(default_factory=list)
 
     def __post_init__(self):
         """"""
@@ -116,6 +123,7 @@ class OrderData(BaseData):
     price: float = 0
     volume: float = 0
     traded: float = 0
+    last_traded_volume: float = 0
     status: Status = Status.SUBMITTING
     datetime: datetime = None
     reference: str = ""
@@ -155,6 +163,27 @@ class OrderData(BaseData):
 
 
 @dataclass
+class AggTrade(BaseData):
+    """
+    Trade data contains information of a fill of an order. One order
+    can have several trade fills.
+    """
+
+    symbol: str
+    exchange: Exchange
+    tradeid: str = None
+    direction: int = 1 #1 buy -1 sell
+    price: float = 0
+    volume: float = 0
+    datetime: datetime = None
+    local_time: float = None
+
+    def __post_init__(self):
+        """"""
+        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_tradeid = f"{self.gateway_name}.{self.tradeid}"
+
+@dataclass
 class TradeData(BaseData):
     """
     Trade data contains information of a fill of an order. One order
@@ -163,8 +192,8 @@ class TradeData(BaseData):
 
     symbol: str
     exchange: Exchange
-    orderid: str
-    tradeid: str
+    orderid: str = None
+    tradeid: str = None
     direction: Direction = None
 
     offset: Offset = Offset.NONE
@@ -416,6 +445,69 @@ class GridPositionCalculator(object):
                 elif previous_pos > 0 and self.pos > 0:
                     self.avg_price = (previous_avg * self.pos - (
                             order.price - previous_avg) * order.volume + order.volume * self.grid_step) / abs(
+                        self.pos)
+
+                elif previous_pos > 0 > self.pos:
+                    self.avg_price = order.price
+
+
+class PositionCalculator(object):
+    """
+    用来计算网格头寸的平均价格
+    Use for calculating the grid position's average price.
+
+    :param grid_step: 网格间隙.
+    """
+
+    def __init__(self):
+        self.pos = 0
+        self.avg_price = 0
+        self.profit = 0
+
+    def update_position(self, order: OrderData):
+        if order.status == Status.NOTTRADED :
+            return
+
+        previous_pos = self.pos
+        previous_avg = self.avg_price
+
+        if order.direction == Direction.LONG:
+            self.pos += order.last_traded_volume
+
+            if self.pos == 0:
+                self.avg_price = 0
+            else:
+
+                if previous_pos == 0:
+                    self.avg_price = order.price
+
+                elif previous_pos > 0:
+                    self.avg_price = (previous_pos * previous_avg + order.last_traded_volume * order.price) / abs(self.pos)
+
+                elif previous_pos < 0 and self.pos < 0:
+                    self.avg_price = (previous_avg * abs(self.pos) - (
+                            order.price - previous_avg) * order.last_traded_volume - order.last_traded_volume ) / abs(
+                        self.pos)
+
+                elif previous_pos < 0 < self.pos:
+                    self.avg_price = order.price
+
+        elif order.direction == Direction.SHORT:
+            self.pos -= order.last_traded_volume
+
+            if self.pos == 0:
+                self.avg_price = 0
+            else:
+
+                if previous_pos == 0:
+                    self.avg_price = order.price
+
+                elif previous_pos < 0:
+                    self.avg_price = (abs(previous_pos) * previous_avg + order.last_traded_volume * order.price) / abs(self.pos)
+
+                elif previous_pos > 0 and self.pos > 0:
+                    self.avg_price = (previous_avg * self.pos - (
+                            order.price - previous_avg) * order.last_traded_volume + order.last_traded_volume ) / abs(
                         self.pos)
 
                 elif previous_pos > 0 > self.pos:

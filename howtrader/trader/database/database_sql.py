@@ -1,4 +1,5 @@
 """"""
+import json
 from datetime import datetime
 from typing import List, Dict, Optional, Sequence, Type
 
@@ -179,7 +180,7 @@ def init_models(db: Database, driver: Driver):
         open_price: float = FloatField()
         high_price: float = FloatField()
         low_price: float = FloatField()
-        pre_close: float = FloatField()
+        close_price: float = FloatField()
 
         bid_price_1: float = FloatField()
         bid_price_2: float = FloatField(null=True)
@@ -205,9 +206,18 @@ def init_models(db: Database, driver: Driver):
         ask_volume_4: float = FloatField(null=True)
         ask_volume_5: float = FloatField(null=True)
 
+        wp: float = FloatField()
+        wv: float = FloatField()
+        last_amount: float = FloatField()
+
+        orderbook_local_time: float = FloatField()
+
+        aggTrade:str = CharField()
+
+
         class Meta:
             database = db
-            indexes = ((("symbol", "exchange", "datetime"), True),)
+            indexes = ((("symbol", "exchange", "datetime","orderbook_local_time"), True),)
 
         @staticmethod
         def from_tick(tick: TickData):
@@ -234,12 +244,18 @@ def init_models(db: Database, driver: Driver):
             db_tick.open_price = tick.open_price
             db_tick.high_price = tick.high_price
             db_tick.low_price = tick.low_price
-            db_tick.pre_close = tick.pre_close
+            db_tick.close_price = tick.close_price
 
             db_tick.bid_price_1 = tick.bid_price_1
             db_tick.ask_price_1 = tick.ask_price_1
             db_tick.bid_volume_1 = tick.bid_volume_1
             db_tick.ask_volume_1 = tick.ask_volume_1
+
+            db_tick.wp = tick.wp
+            db_tick.wv = tick.wv
+            db_tick.last_amount = tick.last_amount
+            db_tick.orderbook_local_time = tick.orderbook_local_time
+            db_tick.aggTrade = json.dumps(tick.aggTrade)
 
             if tick.bid_price_2:
                 db_tick.bid_price_2 = tick.bid_price_2
@@ -262,6 +278,7 @@ def init_models(db: Database, driver: Driver):
                 db_tick.ask_volume_4 = tick.ask_volume_4
                 db_tick.ask_volume_5 = tick.ask_volume_5
 
+
             return db_tick
 
         def to_tick(self):
@@ -282,7 +299,7 @@ def init_models(db: Database, driver: Driver):
                 open_price=self.open_price,
                 high_price=self.high_price,
                 low_price=self.low_price,
-                pre_close=self.pre_close,
+                close_price=self.close_price,
                 bid_price_1=self.bid_price_1,
                 ask_price_1=self.ask_price_1,
                 bid_volume_1=self.bid_volume_1,

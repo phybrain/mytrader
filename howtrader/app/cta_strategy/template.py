@@ -1,4 +1,5 @@
 """"""
+import numpy as np
 from abc import ABC
 from copy import copy
 from typing import Any, Callable
@@ -434,3 +435,48 @@ class TargetPosTemplate(CtaTemplate):
                     vt_orderids = self.short(short_price, abs(pos_change))
             self.active_orderids.extend(vt_orderids)
 
+
+class TickArrayManager(object):
+    """
+    Tick序列管理工具，负责：
+    1. Tick时间序列的维护
+    2. 常用技术指标的计算
+    """
+
+    # ----------------------------------------------------------------------
+    def __init__(self, size=10):
+        """Constructor"""
+        self.count = 0  # 缓存计数
+        self.size = size  # 缓存大小
+        self.inited = False  # True if count>=size
+
+        self.TicklastPriceArray = np.zeros(self.size)
+        self.TickaskVolume1Array = np.zeros(self.size)
+        self.TickbidVolume1Array = np.zeros(self.size)
+        self.TickaskPrice1Array = np.zeros(self.size)
+        self.TickbidPrice1Array = np.zeros(self.size)
+        self.TickopenInterestArray = np.zeros(self.size)
+        self.TickvolumeArray = np.zeros(self.size)
+
+    # ----------------------------------------------------------------------
+    def updateTick(self, tick: TickData):
+        """更新tick Array"""
+        self.count += 1
+        if not self.inited and self.count >= self.size:
+            self.inited = True
+
+        self.TicklastPriceArray[0:self.size - 1] = self.TicklastPriceArray[1:self.size]
+        self.TickaskVolume1Array[0:self.size - 1] = self.TickaskVolume1Array[1:self.size]
+        self.TickbidVolume1Array[0:self.size - 1] = self.TickbidVolume1Array[1:self.size]
+        self.TickaskPrice1Array[0:self.size - 1] = self.TickaskPrice1Array[1:self.size]
+        self.TickbidPrice1Array[0:self.size - 1] = self.TickbidPrice1Array[1:self.size]
+        self.TickopenInterestArray[0:self.size - 1] = self.TickopenInterestArray[1:self.size]
+        self.TickvolumeArray[0:self.size - 1] = self.TickvolumeArray[1:self.size]
+
+        self.TicklastPriceArray[-1] = tick.last_price
+        self.TickaskVolume1Array[-1] = tick.ask_volume_1
+        self.TickbidVolume1Array[-1] = tick.bid_volume_1
+        self.TickaskPrice1Array[-1] = tick.ask_price_1
+        self.TickbidPrice1Array[-1] = tick.bid_price_1
+        self.TickopenInterestArray[-1] = tick.open_interest
+        self.TickvolumeArray[-1] = tick.volume

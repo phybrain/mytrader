@@ -6,12 +6,13 @@ import urllib
 import hashlib
 import hmac
 import time
-from copy import copy
+from copy import copy,deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
-from threading import Lock
+from threading import Lock,RLock
 from typing import Dict, List, Tuple
 import pytz
+import uuid
 
 from howtrader.api.rest import RestClient, Request
 from howtrader.api.websocket import WebsocketClient
@@ -868,6 +869,7 @@ class BinancesTradeWebsocketApi(WebsocketClient):
             price=float(ord_data["p"]),
             volume=float(ord_data["q"]),
             traded=float(ord_data["z"]),
+            last_traded_volume=float(ord_data["l"]),
             status=STATUS_BINANCES2VT[ord_data["X"]],
             datetime=generate_datetime(packet["E"]),
             gateway_name=self.gateway_name
@@ -907,7 +909,10 @@ class BinancesDataWebsocketApi(WebsocketClient):
 
         self.ticks: Dict[str, TickData] = {}
         self.bars: Dict[str, BarData] = {}
+        self.trades: Dict[str,List] = {}
+        self.last: Dict[str,Dict] = {}
         self.usdt_base = False
+        self.lock = RLock()
 
     def connect(
         self,
@@ -953,6 +958,8 @@ class BinancesDataWebsocketApi(WebsocketClient):
 
         self.bars[req.symbol.lower()] = bar
 
+        self.last[req.symbol.lower()] = {}
+        self.trades[req.symbol.lower()] = []
         # Close previous connection
         if self._active:
             self.stop()
@@ -961,10 +968,10 @@ class BinancesDataWebsocketApi(WebsocketClient):
         # Create new connection
         channels = []
         for ws_symbol in self.ticks.keys():
-            channels.append(ws_symbol + "@ticker")
-            channels.append(ws_symbol + "@depth5")
+            # channels.append(ws_symbol + "@ticker")
+            channels.append(ws_symbol + "@depth5@500ms")
             channels.append(ws_symbol + "@kline_1m")
-
+            channels.append(ws_symbol + "@aggTrade")
         if self.server == "REAL":
             url = F_WEBSOCKET_DATA_HOST + "/".join(channels)
             if not self.usdt_base:
@@ -981,19 +988,26 @@ class BinancesDataWebsocketApi(WebsocketClient):
         """"""
         stream = packet["stream"]
         data = packet["data"]
-
-        symbol, channel = stream.split("@")
+        wschannel = stream.split("@")
+        symbol, channel = wschannel[0],wschannel[1]
         tick: TickData = self.ticks[symbol]
         bar: BarData = self.bars[symbol]
+        # trade = TradeData(
+        #     symbol=symbol,
+        #     exchange=Exchange.BINANCE,
+        #     gateway_name=self.gateway_name,
+        # )
 
         if channel == "ticker":
-            tick.volume = float(data['v'])
-            tick.open_price = float(data['o'])
-            tick.high_price = float(data['h'])
-            tick.low_price = float(data['l'])
-            tick.last_price = float(data['c'])
-            tick.last_volume = float(data['Q'])
-            tick.datetime = generate_datetime(float(data['E'])) # datetime.fromtimestamp(float(data['E']) / 1000)
+            pass
+            # tick.volume = float(data['v'])
+            # tick.open_price = float(data['o'])
+            # tick.high_price = float(data['h'])
+            # tick.low_price = float(data['l'])
+            # tick.last_price = float(data['c'])
+            # tick.last_volume = float(data['Q'])
+            # tick.datetime = generate_datetime(float(data['E'])) # datetime.fromtimestamp(float(data['E']) / 1000)
+            # tick.aggTrade = self.trades[symbol]
 
         elif channel == "kline_1m":
 
@@ -1010,8 +1024,11 @@ class BinancesDataWebsocketApi(WebsocketClient):
             if data['k']['x']:  # bar finished
                 self.gateway.on_bar(copy(bar))
 
-        else:
+        elif channel == "depth5":
+            tick.orderbook_local_time = time.time()
             bids = data["b"]
+            decimal_lenth = len(str(bids[0][0]).split('.')[1])
+            # flag = 0
             for n in range(min(5, len(bids))):
                 price, volume = bids[n]
                 tick.__setattr__("bid_price_" + str(n + 1), float(price))
@@ -1022,9 +1039,97 @@ class BinancesDataWebsocketApi(WebsocketClient):
                 price, volume = asks[n]
                 tick.__setattr__("ask_price_" + str(n + 1), float(price))
                 tick.__setattr__("ask_volume_" + str(n + 1), float(volume))
+            # if (tick.ask_price_1 != self.last[symbol].get('ask_price_1') and  tick.bid_price_1 != self.last[symbol].get('bid_price_1') and tick.ask_volume_1 != self.last[symbol].get('ask_volume_1') \
+            # and tick.bid_volume_1 != self.last[symbol].get('bid_volume_1') ):
+            if len(self.trades[symbol])>0:
+                self.lock.acquire()
+                aggTrade = deepcopy(self.trades[symbol])
+                self.trades[symbol] = []
 
-        if tick.last_price:
-            self.gateway.on_tick(copy(tick))
+                self.lock.release()
+                first_id = None
+                highp = 0
+                lowp = 0
+                openp = 0
+                closep = 0
+                total_volume: float = 0
+                weight_volume: float = 0
+                weight_price: float = 0
+                amount: float = 0
+
+                for trade in aggTrade:
+                    trade_id = trade.get('id')
+                    price = float(trade['p'])
+                    qty = float(trade['v'])
+                    side = trade['ld']
+
+                    if not first_id:
+                        first_id = trade_id
+                        openp = price
+                        lowp = price
+                    if price > highp:
+                        highp = price
+                    if price < lowp:
+                        lowp = price
+
+                    amount = amount + price * qty
+                    total_volume = total_volume + qty
+                    weight_volume = weight_volume + price * qty * side
+
+                closep = aggTrade[-1]['p']
+                weight_price = amount / total_volume
+
+                tick.aggTrade = aggTrade
+                tick.high_price= highp
+                tick.low_price = lowp
+                tick.open_price = openp
+                tick.close_price = closep
+                tick.wp = round(weight_price,decimal_lenth)
+                tick.wv = round(weight_volume,decimal_lenth)
+                tick.last_amount = round(amount,decimal_lenth)
+
+                tick.last_price = closep
+                tick.last_volume = aggTrade[-1]['v']
+                tick.orderbook_local_time = float(time.time())
+                self.gateway.on_tick(copy(tick))
+
+        elif channel == "aggTrade":
+            lp = float(data["p"])
+            lv = float(data["q"])
+            ld = -1 if int(data["m"]) else 1
+            t = data['T']
+            dt = generate_datetime(float(data['T']))
+            # tradeid = str(uuid.uuid4()).replace('-', '')
+            tradeid = data["a"]
+            trade_map = {"p":lp,"v":lv,"ld":ld,"t":t,'id':tradeid,'lt':time.time()}
+            self.lock.acquire()
+            self.trades[symbol].append(trade_map)
+            self.lock.release()
+            # tick.aggTrade = self.trades[symbol]
+            # if len(self.trades[symbol])>10:
+            #     self.trades[symbol].pop(0)
+            # tag = 1
+
+            # trade.volume = lv
+            # trade.datetime = dt
+            # trade.price = lp
+            # trade.direction = ld
+            # trade.tradeid = tradeid
+            # self.gateway.on_trade(copy(trade))
+            # {
+            #     "e": "aggTrade", // 事件类型
+            # "E": 123456789, // 事件时间
+            # "s": "BNBUSDT", // 交易对
+            # "a": 5933014, // 归集成交ID
+            # "p": "0.001", // 成交价格
+            # "q": "100", // 成交量
+            # "f": 100, // 被归集的首个交易ID
+            # "l": 105, // 被归集的末次交易ID
+            # "T": 123456785, // 成交时间
+            # "m": true // 买方是否是做市方。如true，则此次成交是一个主动卖出单，否则是一个主动买入单。
+            # }
+        # if tick.last_price and tag ==1:
+        #     self.gateway.on_tick(copy(tick))
 
 
 def generate_datetime(timestamp: float) -> datetime:
