@@ -73,6 +73,7 @@ ORDERTYPE_VT2BINANCES: Dict[OrderType, Tuple[str, str]] = {
     OrderType.MARKET: ("MARKET", "GTC"),
     OrderType.FAK: ("LIMIT", "IOC"),
     OrderType.FOK: ("LIMIT", "FOK"),
+    OrderType.GTX: ("LIMIT", "GTX"),
 }
 ORDERTYPE_BINANCES2VT: Dict[Tuple[str, str], OrderType] = {v: k for k, v in ORDERTYPE_VT2BINANCES.items()}
 
@@ -445,7 +446,7 @@ class BinancesRestApi(RestClient):
             "symbol": req.symbol,
             "side": DIRECTION_VT2BINANCES[req.direction],
             "type": order_type,
-            "timeInForce": time_condition,
+            "timeInForce": "GTX",
             "price": float(req.price),
             "quantity": float(req.volume),
             "newClientOrderId": orderid,
