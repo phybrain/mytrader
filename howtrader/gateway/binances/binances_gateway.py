@@ -970,7 +970,7 @@ class BinancesDataWebsocketApi(WebsocketClient):
         channels = []
         for ws_symbol in self.ticks.keys():
             # channels.append(ws_symbol + "@ticker")
-            channels.append(ws_symbol + "@depth5@500ms")
+            channels.append(ws_symbol + "@depth5@100ms")
             channels.append(ws_symbol + "@kline_1m")
             channels.append(ws_symbol + "@aggTrade")
         if self.server == "REAL":
